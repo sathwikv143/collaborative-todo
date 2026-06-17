@@ -1,0 +1,43 @@
+{
+  "name": "collaborative-todo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Simple collaborative todo lists with invite links and live sync",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:migrate:run": "node scripts/migrate.mjs",
+    "db:wait": "node scripts/wait-for-db.mjs",
+    "db:push": "drizzle-kit push",
+    "deps": "docker compose up -d postgres",
+    "deps:down": "docker compose stop postgres",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f app",
+    "setup": "npm run deps && npm run db:wait && npm run db:migrate:run"
+  },
+  "dependencies": {
+    "@simplewebauthn/browser": "^13.3.0",
+    "@simplewebauthn/server": "^13.3.1",
+    "bcryptjs": "^3.0.3",
+    "drizzle-orm": "^0.45.2",
+    "jose": "^6.0.11",
+    "next": "^15.5.19",
+    "postgres": "^3.4.7",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "zod": "^3.25.67"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^22.15.32",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "drizzle-kit": "^0.31.10",
+    "typescript": "^5.8.3"
+  }
+}
