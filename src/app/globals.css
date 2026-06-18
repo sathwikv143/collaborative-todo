@@ -306,6 +306,18 @@ html[data-theme="dark"] .filter-chip.active {
   background: var(--surface);
 }
 
+.display-name-form {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.display-name-form .input {
+  flex: 1;
+  min-width: 0;
+}
+
 .btn-danger-text {
   color: var(--danger);
 }

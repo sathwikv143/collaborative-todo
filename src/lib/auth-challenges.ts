@@ -10,7 +10,8 @@ export type AuthChallengeFlow =
   | "passkey_login"
   | "passkey_recover"
   | "passkey_add"
-  | "backup_regenerate";
+  | "backup_regenerate"
+  | "account_delete";
 
 export async function storeChallenge(params: {
   challenge: string;

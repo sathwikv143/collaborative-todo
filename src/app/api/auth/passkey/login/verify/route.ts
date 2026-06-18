@@ -4,10 +4,9 @@ import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
 import { db } from "@/lib/db";
 import { passkeys, users } from "@/lib/db/schema";
 import { jsonError, parseJsonBody, setAuthSession } from "@/lib/api-helpers";
-import { BACKUP_CODE_WARN_THRESHOLD } from "@/lib/backup-codes";
+import { getBackupCodesStatus } from "@/lib/backup-code-status";
 import { consumeChallenge } from "@/lib/auth-challenges";
 import {
-  countUnusedBackupCodes,
   findUserByAccountId,
   getPasskeyByCredentialId,
   userSessionActor,
@@ -80,12 +79,11 @@ export async function POST(request: NextRequest) {
     .set({ counter: verification.authenticationInfo.newCounter })
     .where(eq(passkeys.id, credential.id));
 
-  const remaining = await countUnusedBackupCodes(user.id);
+  const status = await getBackupCodesStatus(user.id);
   const session = userSessionActor(user);
   const res = NextResponse.json({
     displayName: user.name,
-    backupCodesRemaining: remaining,
-    backupCodesLow: remaining < BACKUP_CODE_WARN_THRESHOLD,
+    ...status,
   });
   return setAuthSession(res, session);
 }

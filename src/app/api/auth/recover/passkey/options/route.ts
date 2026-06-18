@@ -4,27 +4,17 @@ import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { jsonError } from "@/lib/api-helpers";
 import { storeChallenge } from "@/lib/auth-challenges";
+import { requireRecoveryUserId } from "@/lib/recover-session";
 import { getActivePasskeys } from "@/lib/passkeys-db";
-import {
-  AUTH_RATE_LIMITS,
-  enforceRateLimit,
-} from "@/lib/rate-limit";
-import { RECOVERY_COOKIE, verifyRecoveryToken } from "@/lib/recovery-token";
+import { AUTH_RATE_LIMITS, enforceRateLimit } from "@/lib/rate-limit";
 import { createRegistrationOptions } from "@/lib/webauthn";
 
 export async function POST(request: NextRequest) {
   const limited = enforceRateLimit(request, "recover", AUTH_RATE_LIMITS.recover);
   if (limited) return limited;
 
-  const recoveryToken = request.cookies.get(RECOVERY_COOKIE)?.value;
-  if (!recoveryToken) {
-    return jsonError("Recovery session expired", 401);
-  }
-
-  const userId = await verifyRecoveryToken(recoveryToken);
-  if (!userId) {
-    return jsonError("Recovery session expired", 401);
-  }
+  const userId = await requireRecoveryUserId(request);
+  if (userId instanceof NextResponse) return userId;
 
   const [user] = await db.select().from(users).where(eq(users.id, userId));
   if (!user) {

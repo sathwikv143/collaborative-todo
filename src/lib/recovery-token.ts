@@ -40,24 +40,27 @@ export async function verifyRecoveryToken(token: string): Promise<string | null>
 
 export function recoveryCookieOptions(token: string) {
   return {
+    ...recoveryCookieBase(),
     name: RECOVERY_COOKIE,
     value: token,
-    httpOnly: true,
-    sameSite: "lax" as const,
-    secure: process.env.NODE_ENV === "production",
-    path: "/api/auth/recover",
     maxAge: 60 * 10,
   };
 }
 
 export function clearRecoveryCookie() {
   return {
+    ...recoveryCookieBase(),
     name: RECOVERY_COOKIE,
     value: "",
+    maxAge: 0,
+  };
+}
+
+function recoveryCookieBase() {
+  return {
     httpOnly: true,
     sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
     path: "/api/auth/recover",
-    maxAge: 0,
   };
 }

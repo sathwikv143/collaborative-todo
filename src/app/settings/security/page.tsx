@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { CredentialsReveal } from "@/components/CredentialsReveal";
@@ -16,6 +16,8 @@ export default function SecuritySettingsPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [newCodes, setNewCodes] = useState<string[] | null>(null);
+  const [displayName, setDisplayName] = useState("");
+  const [displayNameSaved, setDisplayNameSaved] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -32,6 +34,32 @@ export default function SecuritySettingsPage() {
   useEffect(() => {
     load();
   }, [router]);
+
+  useEffect(() => {
+    setDisplayName(info?.displayName ?? "");
+  }, [info?.displayName]);
+
+  async function handleUpdateDisplayName(e: FormEvent) {
+    e.preventDefault();
+    const trimmed = displayName.trim();
+    if (!trimmed) {
+      setError("Display name is required");
+      return;
+    }
+
+    setBusy(true);
+    setError("");
+    setDisplayNameSaved(false);
+    try {
+      const result = await api.updateDisplayName(trimmed);
+      setInfo((prev) => (prev ? { ...prev, displayName: result.displayName } : prev));
+      setDisplayNameSaved(true);
+    } catch (err) {
+      setError(getErrorMessage(err, "Could not update display name"));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function handleAddPasskey() {
     setBusy(true);
@@ -79,6 +107,26 @@ export default function SecuritySettingsPage() {
     }
   }
 
+  async function handleDeleteAccount() {
+    const confirmed = confirm(
+      "Delete your account permanently? This removes all your lists, passkeys, and backup codes. This cannot be undone."
+    );
+    if (!confirmed) return;
+
+    setBusy(true);
+    setError("");
+    try {
+      const { challengeId, options } = await api.accountDeleteOptions();
+      const response = await usePasskey(options);
+      await api.accountDeleteVerify(challengeId, response);
+      router.replace("/login");
+    } catch (err) {
+      setError(getErrorMessage(err, "Could not delete account"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (loading || !info) {
     return (
       <main className="page-center">
@@ -106,19 +154,46 @@ export default function SecuritySettingsPage() {
 
   return (
     <main className="page-shell">
-      <div className="page-corner">
-        <ThemeToggle />
-      </div>
-      <div className="container" style={{ maxWidth: 640 }}>
-        <header className="page-header">
-          <div>
-            <p className="list-kicker">Account</p>
-            <h1 className="page-title">Security</h1>
-          </div>
+      <header className="page-header">
+        <div>
+          <p className="list-kicker">Account</p>
+          <h1 className="page-title">Security</h1>
+        </div>
+        <div className="page-header-actions">
           <Link href="/lists" className="btn btn-ghost btn-sm">
             ← Back to lists
           </Link>
-        </header>
+          <ThemeToggle />
+        </div>
+      </header>
+
+      <div className="container">
+        <section className="security-section">
+          <h2 className="security-section-title">Display name</h2>
+          <p className="muted-text">Shown to other members on shared lists.</p>
+          <form className="display-name-form" onSubmit={handleUpdateDisplayName}>
+            <input
+              id="displayName"
+              type="text"
+              className="input"
+              value={displayName}
+              onChange={(e) => {
+                setDisplayName(e.target.value);
+                setDisplayNameSaved(false);
+              }}
+              maxLength={80}
+              required
+            />
+            <button type="submit" className="btn btn-sm" disabled={busy}>
+              {busy ? "Saving…" : "Save"}
+            </button>
+          </form>
+          {displayNameSaved && (
+            <p className="muted-text" style={{ marginTop: 8 }}>
+              Display name updated.
+            </p>
+          )}
+        </section>
 
         {info.accountId && (
           <section className="security-section">
@@ -189,6 +264,23 @@ export default function SecuritySettingsPage() {
           </section>
         )}
 
+        {info.accountId && (
+          <section className="danger-zone">
+            <h2 className="security-section-title">Delete account</h2>
+            <p className="muted-text">
+              Permanently delete your account, passkeys, backup codes, and any lists you own.
+              You will be removed from lists shared by others.
+            </p>
+            <button
+              type="button"
+              className="btn btn-sm btn-danger"
+              onClick={handleDeleteAccount}
+              disabled={busy}
+            >
+              Delete account
+            </button>
+          </section>
+        )}
       </div>
     </main>
   );

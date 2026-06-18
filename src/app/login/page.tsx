@@ -101,6 +101,8 @@ export default function LoginPage() {
         </form>
 
         <p className="muted-text auth-alt-links">
+          <Link href="/forgot-account-id">Forgot account ID?</Link>
+          <span aria-hidden> · </span>
           <Link href="/recover">Recover with a backup code</Link>
           <span aria-hidden> · </span>
           <Link href="/register">Create account</Link>

@@ -3,6 +3,7 @@ import {
   ACCOUNT_ID_FORMATTED_MAX_LENGTH,
   normalizeAccountId,
 } from "./account-id-format";
+import { isValidBackupCodeFormat, normalizeBackupCode } from "./backup-codes";
 import { validateExternalUrl } from "./external-links";
 import { TASK_PRIORITIES } from "./task-priority";
 import { TASK_STATUS_IDS } from "./task-status";
@@ -82,6 +83,10 @@ export const passkeyRegisterOptionsSchema = z.object({
   displayName: z.string().min(1, "Display name is required").max(80),
 });
 
+export const updateDisplayNameSchema = z.object({
+  displayName: z.string().min(1, "Display name is required").max(80),
+});
+
 export const passkeyRegisterVerifySchema = z.object({
   challengeId: z.string().uuid(),
   response: z.record(z.unknown()),
@@ -110,9 +115,21 @@ export const passkeyLoginVerifySchema = z.object({
   response: z.record(z.unknown()),
 });
 
-export const recoverVerifySchema = z.object({
-  accountId: accountIdInputSchema,
-  backupCode: z.string().min(8).max(16),
+const backupCodeInputSchema = z
+  .string()
+  .min(1)
+  .max(20)
+  .transform((value, ctx) => {
+    if (!isValidBackupCodeFormat(value)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid backup code" });
+      return z.NEVER;
+    }
+    return normalizeBackupCode(value);
+  });
+
+export const recoverBackupCodeSchema = z.object({
+  backupCode: backupCodeInputSchema,
+  consume: z.boolean(),
 });
 
 export const recoverPasskeyVerifySchema = z.object({
@@ -134,6 +151,8 @@ export const backupRegenerateVerifySchema = z.object({
   challengeId: z.string().uuid(),
   response: z.record(z.unknown()),
 });
+
+export const accountDeleteVerifySchema = backupRegenerateVerifySchema;
 
 export const createInviteSchema = z.object({
   role: z.enum(["admin", "editor", "viewer"]).optional(),

@@ -4,18 +4,12 @@ import type { RegistrationResponseJSON } from "@simplewebauthn/server";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { jsonError, parseJsonBody, setAuthSession } from "@/lib/api-helpers";
-import { BACKUP_CODE_WARN_THRESHOLD } from "@/lib/backup-codes";
+import { getBackupCodesStatus } from "@/lib/backup-code-status";
 import { consumeChallenge } from "@/lib/auth-challenges";
-import { countUnusedBackupCodes, insertPasskeyFromRegistration, userSessionActor } from "@/lib/passkeys-db";
-import {
-  AUTH_RATE_LIMITS,
-  enforceRateLimit,
-} from "@/lib/rate-limit";
-import {
-  RECOVERY_COOKIE,
-  clearRecoveryCookie,
-  verifyRecoveryToken,
-} from "@/lib/recovery-token";
+import { requireRecoveryUserId } from "@/lib/recover-session";
+import { insertPasskeyFromRegistration, userSessionActor } from "@/lib/passkeys-db";
+import { AUTH_RATE_LIMITS, enforceRateLimit } from "@/lib/rate-limit";
+import { clearRecoveryCookie } from "@/lib/recovery-token";
 import { recoverPasskeyVerifySchema } from "@/lib/schemas";
 import { extractRegistrationChallenge, verifyRegistration } from "@/lib/webauthn";
 
@@ -23,15 +17,8 @@ export async function POST(request: NextRequest) {
   const limited = enforceRateLimit(request, "recover", AUTH_RATE_LIMITS.recover);
   if (limited) return limited;
 
-  const recoveryToken = request.cookies.get(RECOVERY_COOKIE)?.value;
-  if (!recoveryToken) {
-    return jsonError("Recovery session expired", 401);
-  }
-
-  const userId = await verifyRecoveryToken(recoveryToken);
-  if (!userId) {
-    return jsonError("Recovery session expired", 401);
-  }
+  const userId = await requireRecoveryUserId(request);
+  if (userId instanceof NextResponse) return userId;
 
   const parsed = await parseJsonBody(request, recoverPasskeyVerifySchema);
   if (parsed instanceof NextResponse) return parsed;
@@ -72,12 +59,11 @@ export async function POST(request: NextRequest) {
     return jsonError("Account not found", 404);
   }
 
-  const remaining = await countUnusedBackupCodes(userId);
   const session = userSessionActor(user);
+  const status = await getBackupCodesStatus(userId);
   const res = NextResponse.json({
     displayName: user.name,
-    backupCodesRemaining: remaining,
-    backupCodesLow: remaining < BACKUP_CODE_WARN_THRESHOLD,
+    ...status,
   });
   res.cookies.set(clearRecoveryCookie());
   return setAuthSession(res, session);

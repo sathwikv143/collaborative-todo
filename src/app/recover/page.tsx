@@ -4,36 +4,26 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { BackupCodeField } from "@/components/BackupCodeField";
 import { api, getErrorMessage } from "@/lib/api-client";
-import {
-  ACCOUNT_ID_PLACEHOLDER,
-  formatAccountIdInput,
-  normalizeAccountId,
-} from "@/lib/account-id-format";
 import { createPasskey } from "@/lib/passkey-client";
 
 export default function RecoverPage() {
   const router = useRouter();
-  const [accountId, setAccountId] = useState("");
   const [backupCode, setBackupCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [step, setStep] = useState<"code" | "passkey">("code");
+  const [accountId, setAccountId] = useState<string | null>(null);
 
   async function handleVerifyCode(e: FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError("");
 
-    const normalized = normalizeAccountId(accountId);
-    if (!normalized) {
-      setError("Enter a valid account ID");
-      setLoading(false);
-      return;
-    }
-
     try {
-      await api.recoverVerify(normalized, backupCode.trim());
+      const result = await api.recoverBackupCode(backupCode.trim(), true);
+      setAccountId(result.accountId);
       setStep("passkey");
     } catch (err) {
       setError(getErrorMessage(err, "Recovery failed"));
@@ -78,34 +68,7 @@ export default function RecoverPage() {
 
         {step === "code" ? (
           <form onSubmit={handleVerifyCode}>
-            <div className="field">
-              <label className="label" htmlFor="accountId">
-                Account ID
-              </label>
-              <input
-                id="accountId"
-                type="text"
-                className="input account-id-input"
-                value={accountId}
-                onChange={(e) => setAccountId(formatAccountIdInput(e.target.value))}
-                placeholder={ACCOUNT_ID_PLACEHOLDER}
-                required
-              />
-            </div>
-            <div className="field">
-              <label className="label" htmlFor="backupCode">
-                Backup code
-              </label>
-              <input
-                id="backupCode"
-                type="text"
-                className="input"
-                value={backupCode}
-                onChange={(e) => setBackupCode(e.target.value.toUpperCase())}
-                placeholder="XXXX-XXXX"
-                required
-              />
-            </div>
+            <BackupCodeField value={backupCode} onChange={setBackupCode} autoFocus />
             {error && <div className="message message-error">{error}</div>}
             <button type="submit" className="btn btn-block" disabled={loading}>
               {loading ? "Verifying…" : "Verify backup code"}
@@ -114,8 +77,9 @@ export default function RecoverPage() {
         ) : (
           <div>
             <p className="muted-text">
-              Backup code accepted. Register a new passkey for this device. You can revoke old
-              passkeys manually in Security settings.
+              Backup code accepted
+              {accountId ? ` for account ${accountId}` : ""}. Register a new passkey for this
+              device. You can revoke old passkeys in Security settings.
             </p>
             {error && <div className="message message-error">{error}</div>}
             <button
@@ -130,6 +94,8 @@ export default function RecoverPage() {
         )}
 
         <p className="muted-text auth-alt-links">
+          <Link href="/forgot-account-id">Forgot account ID?</Link>
+          <span aria-hidden> · </span>
           <Link href="/login">Back to sign in</Link>
         </p>
       </div>

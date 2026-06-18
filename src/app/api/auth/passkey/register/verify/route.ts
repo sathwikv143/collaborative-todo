@@ -2,18 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import type { RegistrationResponseJSON } from "@simplewebauthn/server";
 import { db } from "@/lib/db";
-import { backupCodes, users } from "@/lib/db/schema";
+import { users } from "@/lib/db/schema";
 import { jsonError, parseJsonBody, setAuthSession } from "@/lib/api-helpers";
 import { consumeChallenge } from "@/lib/auth-challenges";
-import {
-  BACKUP_CODE_COUNT,
-  generateBackupCodes,
-  hashBackupCode,
-} from "@/lib/backup-codes";
+import { backupCodesStatusFromCount } from "@/lib/backup-code-status";
 import { formatAccountId } from "@/lib/account-id";
 import { AUTH_RATE_LIMITS, enforceRateLimit } from "@/lib/rate-limit";
 import { passkeyRegisterVerifySchema } from "@/lib/schemas";
-import { insertPasskeyFromRegistration, userSessionActor } from "@/lib/passkeys-db";
+import {
+  insertBackupCodesForUser,
+  insertPasskeyFromRegistration,
+  userSessionActor,
+} from "@/lib/passkeys-db";
 import { extractRegistrationChallenge, verifyRegistration } from "@/lib/webauthn";
 
 export async function POST(request: NextRequest) {
@@ -55,13 +55,7 @@ export async function POST(request: NextRequest) {
     deviceLabel: "Primary passkey",
   });
 
-  const codes = generateBackupCodes(BACKUP_CODE_COUNT);
-  for (const code of codes) {
-    await db.insert(backupCodes).values({
-      userId: challenge.userId,
-      codeHash: await hashBackupCode(code),
-    });
-  }
+  const codes = await insertBackupCodesForUser(challenge.userId);
 
   const [user] = await db.select().from(users).where(eq(users.id, challenge.userId));
   if (!user?.accountId) {
@@ -73,8 +67,7 @@ export async function POST(request: NextRequest) {
     accountId: formatAccountId(user.accountId),
     displayName: user.name,
     backupCodes: codes,
-    backupCodesRemaining: codes.length,
-    backupCodesLow: false,
+    ...backupCodesStatusFromCount(codes.length),
   });
   return setAuthSession(res, session);
 }

@@ -30,15 +30,20 @@ export const passkeys = pgTable("passkeys", {
   revokedAt: timestamp("revoked_at", { withTimezone: true }),
 });
 
-export const backupCodes = pgTable("backup_codes", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  codeHash: text("code_hash").notNull(),
-  usedAt: timestamp("used_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-});
+export const backupCodes = pgTable(
+  "backup_codes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    codeHash: text("code_hash").notNull(),
+    codeLookup: text("code_lookup"),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex("backup_codes_code_lookup_idx").on(table.codeLookup)]
+);
 
 export const authChallenges = pgTable("auth_challenges", {
   id: uuid("id").primaryKey().defaultRandom(),

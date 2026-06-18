@@ -100,5 +100,5 @@ export const AUTH_RATE_LIMITS = {
   passkeyLoginPerAccount: { limit: 10, windowMs: 15 * 60 * 1000 },
   passkeyRegister: { limit: 10, windowMs: 60 * 60 * 1000 },
   recover: { limit: 15, windowMs: 15 * 60 * 1000 },
-  recoverPerAccount: { limit: 5, windowMs: 15 * 60 * 1000 },
+  recoverAccountId: { limit: 5, windowMs: 15 * 60 * 1000 },
 } as const;

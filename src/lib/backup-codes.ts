@@ -1,28 +1,56 @@
-import { randomBytes } from "crypto";
+import { createHmac, randomBytes } from "crypto";
 import { hashPassword, verifyPassword } from "./password";
 
 const CODE_COUNT = 10;
-const CODE_LENGTH = 8;
+const CODE_LENGTH = 12;
+const CODE_GROUP_SIZE = 4;
 const ALPHANUM = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 export const BACKUP_CODE_COUNT = CODE_COUNT;
+export const BACKUP_CODE_LENGTH = CODE_LENGTH;
 export const BACKUP_CODE_WARN_THRESHOLD = 3;
+export const BACKUP_CODE_PLACEHOLDER = formatBackupCode("X".repeat(CODE_LENGTH));
 
-export function generateBackupCodes(count = CODE_COUNT): string[] {
-  const codes: string[] = [];
-  for (let i = 0; i < count; i++) {
-    const bytes = randomBytes(CODE_LENGTH);
-    let raw = "";
-    for (let j = 0; j < CODE_LENGTH; j++) {
-      raw += ALPHANUM[bytes[j] % ALPHANUM.length];
-    }
-    codes.push(`${raw.slice(0, 4)}-${raw.slice(4)}`);
+const BACKUP_CODE_PATTERN = new RegExp(`^[A-Z0-9]{${CODE_LENGTH}}$`);
+
+function lookupSecret(): string {
+  const secret = process.env.JWT_SECRET ?? "dev-secret-change-in-production";
+  return secret;
+}
+
+export function formatBackupCode(raw: string): string {
+  const parts: string[] = [];
+  for (let i = 0; i < raw.length; i += CODE_GROUP_SIZE) {
+    parts.push(raw.slice(i, i + CODE_GROUP_SIZE));
   }
-  return codes;
+  return parts.join("-");
+}
+
+export function formatBackupCodeInput(value: string): string {
+  const normalized = value.replace(/[^A-Za-z0-9]/g, "").slice(0, CODE_LENGTH).toUpperCase();
+  return formatBackupCode(normalized);
 }
 
 export function normalizeBackupCode(input: string): string {
-  return input.replace(/\s/g, "").toUpperCase();
+  return input.replace(/[\s-]/g, "").toUpperCase();
+}
+
+export function isValidBackupCodeFormat(input: string): boolean {
+  return BACKUP_CODE_PATTERN.test(normalizeBackupCode(input));
+}
+
+export function computeBackupCodeLookup(code: string): string {
+  const normalized = normalizeBackupCode(code);
+  return createHmac("sha256", lookupSecret()).update(normalized).digest("hex");
+}
+
+export function generateBackupCode(): string {
+  const bytes = randomBytes(CODE_LENGTH);
+  let raw = "";
+  for (let j = 0; j < CODE_LENGTH; j++) {
+    raw += ALPHANUM[bytes[j]! % ALPHANUM.length];
+  }
+  return formatBackupCode(raw);
 }
 
 export async function hashBackupCode(code: string): Promise<string> {

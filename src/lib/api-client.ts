@@ -144,6 +144,8 @@ export interface SecurityInfo {
   backupCodesLow: boolean;
 }
 
+type BackupCodesStatus = Pick<SecurityInfo, "backupCodesRemaining" | "backupCodesLow">;
+
 export const api = {
   passkeyRegisterOptions: (displayName: string) =>
     request<{
@@ -177,24 +179,22 @@ export const api = {
     }),
 
   passkeyLoginVerify: (challengeId: string, accountId: string, response: unknown) =>
-    request<{
-      displayName: string | null;
-      backupCodesRemaining: number;
-      backupCodesLow: boolean;
-    }>("/api/auth/passkey/login/verify", {
-      method: "POST",
-      body: JSON.stringify({ challengeId, accountId, response }),
-    }),
+    request<{ displayName: string | null } & BackupCodesStatus>(
+      "/api/auth/passkey/login/verify",
+      {
+        method: "POST",
+        body: JSON.stringify({ challengeId, accountId, response }),
+      }
+    ),
 
-  recoverVerify: (accountId: string, backupCode: string) =>
-    request<{
-      accountId: string | null;
-      backupCodesRemaining: number;
-      backupCodesLow: boolean;
-    }>("/api/auth/recover/verify", {
-      method: "POST",
-      body: JSON.stringify({ accountId, backupCode }),
-    }),
+  recoverBackupCode: (backupCode: string, consume: boolean) =>
+    request<{ accountId: string } & Partial<BackupCodesStatus>>(
+      "/api/auth/recover/backup-code",
+      {
+        method: "POST",
+        body: JSON.stringify({ backupCode, consume }),
+      }
+    ),
 
   recoverPasskeyOptions: () =>
     request<{
@@ -206,16 +206,21 @@ export const api = {
     }),
 
   recoverPasskeyVerify: (challengeId: string, response: unknown) =>
-    request<{
-      displayName: string | null;
-      backupCodesRemaining: number;
-      backupCodesLow: boolean;
-    }>("/api/auth/recover/passkey/verify", {
-      method: "POST",
-      body: JSON.stringify({ challengeId, response }),
-    }),
+    request<{ displayName: string | null } & BackupCodesStatus>(
+      "/api/auth/recover/passkey/verify",
+      {
+        method: "POST",
+        body: JSON.stringify({ challengeId, response }),
+      }
+    ),
 
   getSecurity: () => request<SecurityInfo>("/api/auth/security"),
+
+  updateDisplayName: (displayName: string) =>
+    request<{ displayName: string | null }>("/api/auth/security", {
+      method: "PATCH",
+      body: JSON.stringify({ displayName }),
+    }),
 
   passkeyAddOptions: () =>
     request<{
@@ -250,6 +255,18 @@ export const api = {
       backupCodesRemaining: number;
       backupCodesLow: boolean;
     }>("/api/auth/backup-codes/regenerate/verify", {
+      method: "POST",
+      body: JSON.stringify({ challengeId, response }),
+    }),
+
+  accountDeleteOptions: () =>
+    request<{
+      challengeId: string;
+      options: import("@simplewebauthn/browser").PublicKeyCredentialRequestOptionsJSON;
+    }>("/api/auth/account/delete/options", { method: "POST", body: "{}" }),
+
+  accountDeleteVerify: (challengeId: string, response: unknown) =>
+    request<{ ok: boolean }>("/api/auth/account/delete/verify", {
       method: "POST",
       body: JSON.stringify({ challengeId, response }),
     }),

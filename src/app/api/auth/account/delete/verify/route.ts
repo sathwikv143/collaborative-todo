@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
 import { db } from "@/lib/db";
-import { backupCodes, passkeys } from "@/lib/db/schema";
+import { invites, passkeys, users } from "@/lib/db/schema";
 import { requireAuth, jsonError, parseJsonBody } from "@/lib/api-helpers";
-import { backupCodesStatusFromCount } from "@/lib/backup-code-status";
 import { consumeChallenge } from "@/lib/auth-challenges";
-import { getPasskeyByCredentialId, insertBackupCodesForUser } from "@/lib/passkeys-db";
-import { backupRegenerateVerifySchema } from "@/lib/schemas";
+import { getPasskeyByCredentialId } from "@/lib/passkeys-db";
+import { accountDeleteVerifySchema } from "@/lib/schemas";
+import { clearAuthCookie } from "@/lib/jwt";
 import { extractAuthenticationChallenge, verifyAuthentication } from "@/lib/webauthn";
 
 export async function POST(request: NextRequest) {
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     return jsonError("Forbidden", 403);
   }
 
-  const parsed = await parseJsonBody(request, backupRegenerateVerifySchema);
+  const parsed = await parseJsonBody(request, accountDeleteVerifySchema);
   if (parsed instanceof NextResponse) return parsed;
 
   const response = parsed.data.response as unknown as AuthenticationResponseJSON;
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
 
   const challenge = await consumeChallenge(
     parsed.data.challengeId,
-    "backup_regenerate",
+    "account_delete",
     challengeValue
   );
   if (!challenge || challenge.userId !== auth.actor.id) {
@@ -61,12 +61,12 @@ export async function POST(request: NextRequest) {
     .set({ counter: verification.authenticationInfo.newCounter })
     .where(eq(passkeys.id, credential.id));
 
-  await db.delete(backupCodes).where(eq(backupCodes.userId, auth.actor.id));
+  // invites.created_by has no cascade — clear before user delete.
+  await db.update(invites).set({ createdBy: null }).where(eq(invites.createdBy, auth.actor.id));
 
-  const codes = await insertBackupCodesForUser(auth.actor.id);
+  await db.delete(users).where(eq(users.id, auth.actor.id));
 
-  return NextResponse.json({
-    backupCodes: codes,
-    ...backupCodesStatusFromCount(codes.length),
-  });
+  const res = NextResponse.json({ ok: true });
+  res.cookies.set(clearAuthCookie());
+  return res;
 }
