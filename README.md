@@ -235,8 +235,9 @@ npm run db:migrate:run
 | Flow | URL | Notes |
 |------|-----|-------|
 | Sign in (passkey) | `/login` | Enter account ID → browser passkey prompt |
-| Create account | `/register` | Display name + passkey; save account ID & backup codes once |
-| Recover account | `/recover` | Account ID + backup code → register new passkey |
+| Forgot account ID | `/forgot-account-id` | Backup code only → reveals account ID (code not consumed) |
+| Create account | `/register` | Display name + passkey; save account ID & 10 backup codes once |
+| Recover account | `/recover` | Backup code only → register new passkey |
 | Security settings | `/settings/security` | Add/revoke passkeys, regenerate backup codes |
 
 `APP_URL` must match your browser origin in production (required for WebAuthn `rpId`).

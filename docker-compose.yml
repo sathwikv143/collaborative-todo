@@ -25,6 +25,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
+      # Host port (APP_PORT) → container port (always 3000). They do not need to match.
       - "${APP_PORT:-3000}:3000"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-todo}:${POSTGRES_PASSWORD:-todo}@postgres:5432/${POSTGRES_DB:-todo}
