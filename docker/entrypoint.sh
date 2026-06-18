@@ -1,7 +1,6 @@
 #!/bin/sh
 set -e
-
-export NODE_PATH="${MIGRATE_NODE_PATH:-}"
+cd /app
 
 echo "Validating environment..."
 node scripts/validate-env.mjs
